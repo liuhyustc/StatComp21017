@@ -1,0 +1,69 @@
+---
+title: "Benchmarking gibbsR and gibbsC"
+author: "Hanyun Liu"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Benchmarking gibbsR and gibbsC}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Overview
+
+__StatComp21017__ is a simple R package for the 'Statistical Computing' course. It includes two functions, namely, _gibbsR_ (R version for generating random nubers using Gibbs sampler) and _gibbsC_ (C++ version for generating random nubers using Gibbs sampler).
+
+The R package 'microbenchmark' can be used to benchmark the above R and C++ functions.
+
+## Benchmarking _gibbsR_ and _gibbsC_
+
+The source R code for _gibbsR_ is as follows:
+```{r,eval=FALSE}
+gibbsR <- function(N, a, b, n, thin) {
+  mat <- matrix(nrow = N, ncol = 2)
+  x <- floor(n/2)
+  y <- 0.5
+  for (i in 1:N) {
+    for (j in 1:thin) {
+      x <- rbinom(1, size = n, prob = y)
+      y <- rbeta(1, x + a, n - x + b)
+    }
+    mat[i, ] <- c(x, y)
+  }
+  mat
+}
+```
+
+The above R code involves two loops, which could be very slow even for R-3.01 or any higher version. The corresponding C++ code is as follows.
+
+```{r,eval=FALSE}
+NumericMatrix gibbsC(int N, double a, double b, int n, int thin) {
+  NumericMatrix mat(N, 2);
+  double x = floor(n/2), y = 0.5;
+  for(int i = 0; i < N; i++) {
+    for(int j = 0; j < thin; j++) {
+      x = rbinom(1, n, y)[0];
+      y = rbeta(1, x+a, n-x+b)[0];
+    }
+    mat(i, 0) = x;
+    mat(i, 1) = y;
+  }
+  return(mat);
+}
+```
+
+The R code for benchmarking _gibbsR_ and _gibbsC_ is as follows.
+
+```{r,eval=TRUE}
+library(StatComp21017)
+library(microbenchmark)
+tm1 <- microbenchmark::microbenchmark(
+  rnR = gibbsR(2000,1,4,50,10),
+  rnC = gibbsC(2000,1,4,50,10)
+)
+
+knitr::kable(summary(tm1)[,c(1,3,5,6)])
+```
+
+The results again show an evident computational speed gain of C++ against R.
+
